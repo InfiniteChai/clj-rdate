@@ -27,6 +27,11 @@
   :rdate-token identity
   } (rdate-parser repr)))
 
+(defmulti date-constructor (fn [current_dt year month day] (class current_dt)))
+(defmethod date-constructor org.joda.time.DateTime [current_dt year month day]
+  (t/date-time year month day))
+(defmethod date-constructor org.joda.time.LocalDate [current_dt year month day]
+  (t/local-date year month day))
 
 (defmulti rdate-add (fn [rd dt] (:type rd)))
 
@@ -52,4 +57,4 @@
         wkd-1st-diff (- wkd-1st (:weekday rd))
         period (if (> wkd-1st-diff 0) (:period rd) (dec (:period rd)))
         days (inc (- (* 7 period) wkd-1st-diff))]
-    (t/local-date (t/year dt) (t/month dt) days)))
+    (date-constructor dt (t/year dt) (t/month dt) days)))

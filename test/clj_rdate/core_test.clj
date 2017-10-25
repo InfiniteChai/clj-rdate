@@ -13,7 +13,16 @@
     ; Check that we correctly increment months
     (t/local-date 2017 11 1) {:rd "7d" :dt (t/local-date 2017 10 25)}
     ; Check that we don't have any weekend handling
-    (t/local-date 2017 10 28) {:rd "1d" :dt (t/local-date 2017 10 27)}))
+    (t/local-date 2017 10 28) {:rd "1d" :dt (t/local-date 2017 10 27)}
+
+    (t/date-time 2017 10 26) {:rd "1d" :dt (t/date-time 2017 10 25)}
+    (t/date-time 2017 10 24) {:rd "-1d" :dt (t/date-time 2017 10 25)}
+    ; Expect no change with 0d
+    (t/date-time 2017 10 25) {:rd "0d" :dt (t/date-time 2017 10 25)}
+    ; Check that we correctly increment months
+    (t/date-time 2017 11 1) {:rd "7d" :dt (t/date-time 2017 10 25)}
+    ; Check that we don't have any weekend handling
+    (t/date-time 2017 10 28) {:rd "1d" :dt (t/date-time 2017 10 27)}))
 
 (deftest test-rdate-add-weeks
   (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
@@ -23,7 +32,14 @@
     ; Expect no change with 0w
     (t/local-date 2017 10 25) {:rd "0w" :dt (t/local-date 2017 10 25)}
     ; Check that we correctly increment months
-    (t/local-date 2017 12 13) {:rd "7w" :dt (t/local-date 2017 10 25)}))
+    (t/local-date 2017 12 13) {:rd "7w" :dt (t/local-date 2017 10 25)}
+
+    (t/date-time 2017 11 1) {:rd "1w" :dt (t/date-time 2017 10 25)}
+    (t/date-time 2017 10 18) {:rd "-1w" :dt (t/date-time 2017 10 25)}
+    ; Expect no change with 0w
+    (t/date-time 2017 10 25) {:rd "0w" :dt (t/date-time 2017 10 25)}
+    ; Check that we correctly increment months
+    (t/date-time 2017 12 13) {:rd "7w" :dt (t/date-time 2017 10 25)}))
 
 
 (deftest test-rdate-add-months
@@ -39,7 +55,19 @@
       ; Check that holds true on leap years as well
       (t/local-date 2013 2 28) {:rd "12m" :dt (t/local-date 2012 2 29)}
       ; Cbeck that we preserve the month and maintain last day in conflict
-      (t/local-date 2011 2 28) {:rd "-12m" :dt (t/local-date 2012 2 29)}))
+      (t/local-date 2011 2 28) {:rd "-12m" :dt (t/local-date 2012 2 29)}
+
+      (t/date-time 2017 11 25) {:rd "1m" :dt (t/date-time 2017 10 25)}
+      (t/date-time 2017 9 25) {:rd "-1m" :dt (t/date-time 2017 10 25)}
+      ; Expect no change with 0m
+      (t/date-time 2017 10 25) {:rd "0m" :dt (t/date-time 2017 10 25)}
+      ; Cbeck that we preserve the month and maintain last day in conflict
+      (t/date-time 2017 11 30) {:rd "1m" :dt (t/date-time 2017 10 31)}
+      (t/date-time 2017 9 30) {:rd "-1m" :dt (t/date-time 2017 10 31)}
+      ; Check that holds true on leap years as well
+      (t/date-time 2013 2 28) {:rd "12m" :dt (t/date-time 2012 2 29)}
+      ; Cbeck that we preserve the month and maintain last day in conflict
+      (t/date-time 2011 2 28) {:rd "-12m" :dt (t/date-time 2012 2 29)}))
 
 (deftest test-rdate-add-years
     (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
@@ -52,7 +80,16 @@
       (t/local-date 2017 10 25) {:rd "0y" :dt (t/local-date 2017 10 25)}
       ; Check that we preserve the month and use last business day on leap years in conflict
       (t/local-date 2013 2 28) {:rd "1y" :dt (t/local-date 2012 2 29)}
-      (t/local-date 2011 2 28) {:rd "-1y" :dt (t/local-date 2012 2 29)}))
+      (t/local-date 2011 2 28) {:rd "-1y" :dt (t/local-date 2012 2 29)}
+      (t/date-time 2018 10 25) {:rd "1y" :dt (t/date-time 2017 10 25)}
+      (t/date-time 2016 10 25) {:rd "-1y" :dt (t/date-time 2017 10 25)}
+      (t/date-time 2029 10 25) {:rd "12y" :dt (t/date-time 2017 10 25)}
+      (t/date-time 2005 10 25) {:rd "-12y" :dt (t/date-time 2017 10 25)}
+      ; Expect no change with 0y
+      (t/date-time 2017 10 25) {:rd "0y" :dt (t/date-time 2017 10 25)}
+      ; Check that we preserve the month and use last business day on leap years in conflict
+      (t/date-time 2013 2 28) {:rd "1y" :dt (t/date-time 2012 2 29)}
+      (t/date-time 2011 2 28) {:rd "-1y" :dt (t/date-time 2012 2 29)}))
 
 (deftest test-rdate-add-weekdays
   (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
@@ -60,7 +97,12 @@
     (t/local-date 2017 10 30) {:rd "1MON" :dt (t/local-date 2017 10 25)}
     (t/local-date 2017 12 30) {:rd "10SAT" :dt (t/local-date 2017 10 25)}
     (t/local-date 2017 10 18) {:rd "-1WED" :dt (t/local-date 2017 10 25)}
-    (t/local-date 2017 8 18) {:rd "-10FRI" :dt (t/local-date 2017 10 25)}))
+    (t/local-date 2017 8 18) {:rd "-10FRI" :dt (t/local-date 2017 10 25)}
+
+    (t/date-time 2017 10 30) {:rd "1MON" :dt (t/date-time 2017 10 25)}
+    (t/date-time 2017 12 30) {:rd "10SAT" :dt (t/date-time 2017 10 25)}
+    (t/date-time 2017 10 18) {:rd "-1WED" :dt (t/date-time 2017 10 25)}
+    (t/date-time 2017 8 18) {:rd "-10FRI" :dt (t/date-time 2017 10 25)}))
 
 (deftest test-rdate-add-nth-weekdays
   (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
@@ -68,10 +110,18 @@
     (t/local-date 2017 10 2) {:rd "1st MON" :dt (t/local-date 2017 10 25)}
     (t/local-date 2017 10 13) {:rd "2nd FRI" :dt (t/local-date 2017 10 25)}
     (t/local-date 2017 11 25) {:rd "4th SAT" :dt (t/local-date 2017 11 25)}
-    (t/local-date 2017 12 31) {:rd "5th SUN" :dt (t/local-date 2017 12 25)}))
+    (t/local-date 2017 12 31) {:rd "5th SUN" :dt (t/local-date 2017 12 25)}
+
+    (t/date-time 2017 10 2) {:rd "1st MON" :dt (t/date-time 2017 10 25)}
+    (t/date-time 2017 10 13) {:rd "2nd FRI" :dt (t/date-time 2017 10 25)}
+    (t/date-time 2017 11 25) {:rd "4th SAT" :dt (t/date-time 2017 11 25)}
+    (t/date-time 2017 12 31) {:rd "5th SUN" :dt (t/date-time 2017 12 25)}))
 
 (deftest test-rdate-add-nth-weekdays-bad
   (are [args] (thrown? Exception (rdate-add (rdate (:rd args)) (:dt args)))
     ;  Run through cases where there is no 5th weekday in a given month
     {:rd "5th WED" :dt (t/local-date 2017 10 25)}
-    {:rd "5th MON" :dt (t/local-date 2017 6 1)}))
+    {:rd "5th MON" :dt (t/local-date 2017 6 1)}
+
+    {:rd "5th WED" :dt (t/date-time 2017 10 25)}
+    {:rd "5th MON" :dt (t/date-time 2017 6 1)}))
