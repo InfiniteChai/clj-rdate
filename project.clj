@@ -4,4 +4,11 @@
   :license {:name "MIT License"
             :url "http://www.opensource.org/licenses/mit-license.php"
             :distribution :repo}
-  :dependencies [[org.clojure/clojure "1.8.0"]])
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 [clj-time "0.14.0"]
+                 [instaparse "1.4.8"]]
+  :profiles {
+    :dev {
+      :dependencies [[proto-repl "0.3.1"]]
+    }
+    })
