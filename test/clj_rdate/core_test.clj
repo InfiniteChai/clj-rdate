@@ -31,6 +31,13 @@
     (t/local-date 2017 10 26) {:arg1 (t/local-date 2017 10 25) :arg2 (rdate "1d")}
     (rdate "2d+1d") {:arg1 (rdate "2d") :arg2 (rdate "1d")}))
 
+(deftest test-rdate-whitespace
+  (are [exp act] (= exp act)
+    (rdate "2d+1d") (rdate "2d + 1d")
+    ; It's even possible to put whitespace between the names
+    (rdate "1d") (rdate "1 d")
+    (rdate "3*(2d+1d)") (rdate "3 * ( 2d +    1d   )")))
+
 (deftest test-rdate-add-weeks
   (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
     ; First check basic cases up add and subtract work

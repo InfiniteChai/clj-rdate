@@ -73,7 +73,9 @@
    <pos-int> = #'[1-9][0-9]*'
    <non-zero-int> = #'-?[1-9][0-9]*'
    <month-short> = #'JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC'
-   <weekday-short> = #'MON|TUE|WED|THU|FRI|SAT|SUN'" :start :rdate-expr))
+   <weekday-short> = #'MON|TUE|WED|THU|FRI|SAT|SUN'"
+   :start :rdate-expr
+   :auto-whitespace :standard))
 
 (defn rdate [repr] (insta/transform {
   :days (fn [p] {:type ::days :period (Integer. p)})
