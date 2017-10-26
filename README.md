@@ -31,7 +31,7 @@ by the clj-time library.
 (rd/rdate-add (rd/rdate "1d") (t/date-time 2017 10 25))
 => #[org.joda.time.DateTime "2017-10-26T00:00:00.000Z"]
 ```
-### Relative Dates
+### Relative Date Formats
 
 #### Days
 
@@ -134,6 +134,27 @@ doesn't exist, then an exception will be thrown
 => #[org.joda.time.LocalDate "2017-10-16"]
 (rd/rdate-add (rd/rdate "5th FRI") (t/local-date 2017 10 25))
 => IllegalFieldValueException Value 34 for dayOfMonth must be in the range [1,31]
+```
+
+You can also ask for the Nth Last Weekday as well, if you need to manipulate
+dates in that fashion
+``` clj
+``` clj
+(rd/rdate-add (rd/rdate "Last THU") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-26"]
+(rd/rdate-add (rd/rdate "2nd Last FRI") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-20"]
+```
+
+#### First and Last Days of the Month
+
+Given a date, this will give you back the first and last dates for
+the given month
+``` clj
+(rd/rdate-add (rd/rdate "FDOM") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-01"]
+(rd/rdate-add (rd/rdate "LDOM") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-31"]
 ```
 
 ## License

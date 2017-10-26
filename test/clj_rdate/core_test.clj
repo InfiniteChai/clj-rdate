@@ -117,6 +117,17 @@
     (t/date-time 2017 11 25) {:rd "4th SAT" :dt (t/date-time 2017 11 25)}
     (t/date-time 2017 12 31) {:rd "5th SUN" :dt (t/date-time 2017 12 25)}))
 
+(deftest test-rdate-add-nth-last-weekdays
+  (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+    ; First check basic cases up add and subtract work
+    (t/local-date 2017 10 30) {:rd "Last MON" :dt (t/local-date 2017 10 24)}
+    (t/local-date 2017 10 20) {:rd "2nd Last FRI" :dt (t/local-date 2017 10 24)}
+    (t/local-date 2017 12 03) {:rd "5th Last SUN" :dt (t/local-date 2017 12 24)}
+
+    (t/date-time 2017 10 30) {:rd "Last MON" :dt (t/date-time 2017 10 24)}
+    (t/date-time 2017 10 20) {:rd "2nd Last FRI" :dt (t/date-time 2017 10 24)}
+    (t/date-time 2017 12 03) {:rd "5th Last SUN" :dt (t/date-time 2017 12 24)}))
+
 (deftest test-rdate-add-nth-weekdays-bad
   (are [args] (thrown? Exception (rdate-add (rdate (:rd args)) (:dt args)))
     ;  Run through cases where there is no 5th weekday in a given month
@@ -125,3 +136,24 @@
 
     {:rd "5th WED" :dt (t/date-time 2017 10 25)}
     {:rd "5th MON" :dt (t/date-time 2017 6 1)}))
+
+(deftest test-rdate-add-nth-last-weekdays-bad
+  (are [args] (thrown? Exception (rdate-add (rdate (:rd args)) (:dt args)))
+    ;  Run through cases where there is no 5th weekday in a given month
+    {:rd "5th Last WED" :dt (t/local-date 2017 10 25)}
+    {:rd "5th Last MON" :dt (t/local-date 2017 6 1)}
+
+    {:rd "5th Last WED" :dt (t/date-time 2017 10 25)}
+    {:rd "5th Last MON" :dt (t/date-time 2017 6 1)}))
+
+(deftest test-rdate-add-first-day-of-month
+  (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+    ; First check basic cases up add and subtract work
+    (t/local-date 2017 10 1) {:rd "FDOM" :dt (t/local-date 2017 10 25)}
+    (t/date-time 2017 10 1) {:rd "FDOM" :dt (t/date-time 2017 10 25)}))
+
+(deftest test-rdate-add-last-day-of-month
+  (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+    ; First check basic cases up add and subtract work
+    (t/local-date 2017 10 31) {:rd "LDOM" :dt (t/local-date 2017 10 25)}
+    (t/date-time 2017 10 31) {:rd "LDOM" :dt (t/date-time 2017 10 25)}))
