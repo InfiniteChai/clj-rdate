@@ -24,6 +24,13 @@
     ; Check that we don't have any weekend handling
     (t/date-time 2017 10 28) {:rd "1d" :dt (t/date-time 2017 10 27)}))
 
+(deftest test-rdate-add-ordering
+  (are [exp args] (= exp (rdate-add (:arg1 args) (:arg2 args)))
+    ; Check through various operations
+    (t/local-date 2017 10 26) {:arg1 (rdate "1d") :arg2 (t/local-date 2017 10 25)}
+    (t/local-date 2017 10 26) {:arg1 (t/local-date 2017 10 25) :arg2 (rdate "1d")}
+    (rdate "2d+1d") {:arg1 (rdate "2d") :arg2 (rdate "1d")}))
+
 (deftest test-rdate-add-weeks
   (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
     ; First check basic cases up add and subtract work
@@ -232,9 +239,16 @@
     ; But bracketing will overrule this
     (t/date-time 2017 11 03) {:rd "2*(3d+1d)" :dt (t/date-time 2017 10 26)}))
 
-    (deftest test-rdate-add-easter-sunday
-      (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
-        ; Check some particular cases out
-        (t/local-date 2017 04 16) {:rd "0E" :dt (t/local-date 2017 10 26)}
-        (t/local-date 2027 03 28) {:rd "10E" :dt (t/local-date 2017 10 26)}
-        (t/local-date 2016 03 27) {:rd "-1E" :dt (t/local-date 2017 10 26)}))
+(deftest test-rdate-add-easter-sunday
+  (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+    ; Check some particular cases out
+    (t/local-date 2017 04 16) {:rd "0E" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2027 03 28) {:rd "10E" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2016 03 27) {:rd "-1E" :dt (t/local-date 2017 10 26)}))
+
+(deftest test-rdate-add-day-month
+  (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+    ; Check some particular cases out
+    (t/local-date 2017 01 01) {:rd "1JAN" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 02 23) {:rd "23FEB" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 12 31) {:rd "31DEC" :dt (t/local-date 2017 10 26)}))

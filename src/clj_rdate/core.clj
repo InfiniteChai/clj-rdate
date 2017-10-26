@@ -1,125 +1,132 @@
 (ns clj-rdate.core
   (:require [clj-time.core :as t]
+    [clj-rdate.internal.fn :as intfn]
     [instaparse.core :as insta]
-    [instaparse.combinators :as c]))
+              [instaparse.combinators :as c]))
 
-; We now want to add support for "addition" or "subtraction" of services
-; Note We treat 2d - 3m to actually be "2d" + "-3m". So the form must support
-; negation.
+(def rdate-hierarchy (-> (make-hierarchy)
+  (derive ::days ::rdate)
+  (derive ::weeks ::rdate)
+  (derive ::months ::rdate)
+  (derive ::years ::rdate)
+  (derive ::weekdays ::rdate)
+  (derive ::nth-weekdays ::rdate)
+  (derive ::nth-last-weekdays ::rdate)
+  (derive ::first-day-of-month ::rdate)
+  (derive ::last-day-of-month ::rdate)
+  (derive ::easter-sunday ::rdate)
+  (derive ::day-month ::rdate)
+  (derive ::compound ::rdate)
+  (derive ::repeat ::rdate)))
 
-; Expression
-;2*3m+4*2d
-;2*(3m+2d)
-;[:add [:left-mult "2" [:months "3"]] [:days "2"]]
-;[:left-mult "2" [:add [:months "3"] [:days "2"]]]
-(defmulti date-constructor (fn [current_dt year month day] (class current_dt)))
+(def months-short "Mapping from month short names to month integer"
+  {"JAN" 1 "FEB" 2 "MAR" 3 "APR" 4 "MAY" 5 "JUN" 6 "JUL" 7 "AUG" 8 "SEP" 9 "OCT" 10 "NOV" 11 "DEC" 12})
 
-(defn- easter-sunday [dt year-increment]
-  (let [year (+ (t/year dt) year-increment)
-        a (rem  year 19)
-        b (quot year 100)
-        c (rem  year 100)
-        d (quot b 4)
-        e (rem  b 4)
-        f (quot (+ b 8) 25)
-        g (quot (+ b (- f) 1) 3)
-        h (rem  (+ (* 19 a) b (- d) (- g) 15) 30)
-        i (quot c 4)
-        k (rem  c 4)
-        l (rem  (+ 32 (* 2 e) (* 2 i) (- h) (- k)) 7)
-        m (quot (+ a (* 11 h) (* 22 l)) 451)
-        n (quot (+ h l (- (* 7 m)) 114) 31)
-        p (rem  (+ h l (- (* 7 m)) 114) 31)]
-    (if (< year 1583)
-      (throw (IllegalArgumentException. "Easter sunday only supported from 1583"))
-      (date-constructor dt year n (inc p)))))
+(def weekdays-short "Mapping from weekday short names to weekday integer (starting on Mon)"
+  {"MON" 1 "TUE" 2 "WED" 3 "THU" 4 "FRI" 5 "SAT" 6 "SUN" 7})
 
-(defmulti rdate-neg :type)
+; The date contructors allow us to work back to the type of date that was passed
+; in. We support the three standard date types available within clj-time
+(defmulti ^{:private true} date-constructor "Date construction wrapper for clj-time"
+  (fn [current_dt year month day] (class current_dt)))
+(defmethod date-constructor org.joda.time.DateTime [current_dt year month day]
+  (t/date-time year month day))
+(defmethod date-constructor org.joda.time.LocalDate [current_dt year month day]
+  (t/local-date year month day))
+(defmethod date-constructor org.joda.time.LocalDateTime [current_dt year month day]
+  (t/local-date-time year month day))
 
-(def rdate-parser (insta/parser {
-  :rdate-expr (c/nt :add-sub)
-  :add-sub (c/hide-tag (c/alt (c/nt :mult) (c/nt :add) (c/nt :sub)))
-  :add (c/cat (c/nt :add-sub) (c/hide (c/string "+")) (c/nt :mult))
-  :sub (c/cat (c/nt :add-sub) (c/hide (c/string "-")) (c/nt :mult))
-  :mult (c/hide-tag (c/alt (c/nt :rdate) (c/nt :left-mult) (c/nt :right-mult)))
-  :left-mult (c/cat (c/nt :pos-int) (c/hide (c/string "*")) (c/nt :mult))
-  :right-mult (c/cat (c/nt :mult) (c/hide (c/string "*")) (c/nt :pos-int))
-  :rdate (c/hide-tag (c/alt (c/nt :rdate-term) (c/cat (c/hide (c/string "(")) (c/nt :add-sub) (c/hide (c/string ")")))))
-  :rdate-term (c/alt (c/nt :days) (c/nt :weeks) (c/nt :months) (c/nt :years) (c/nt :easter-sunday)
-    (c/nt :weekdays) (c/nt :nth-weekdays) (c/nt :nth-last-weekdays) (c/nt :first-day-of-month) (c/nt :last-day-of-month))
-  :days (c/cat (c/nt :int) (c/hide (c/string "d")))
-  :weeks (c/cat (c/nt :int) (c/hide (c/string "w")))
-  :months (c/cat (c/nt :int) (c/hide (c/string "m")))
-  :years (c/cat (c/nt :int) (c/hide (c/string "y")))
-  :easter-sunday (c/cat (c/nt :int) (c/hide (c/string "E")))
-  :first-day-of-month (c/hide (c/string "FDOM"))
-  :last-day-of-month (c/hide (c/string "LDOM"))
-  :weekdays (c/cat (c/nt :non-zero-int) (c/regexp #"MON|TUE|WED|THU|FRI|SAT|SUN"))
-  :nth-weekdays (c/cat (c/regexp #"1st|2nd|3rd|4th|5th") (c/hide (c/string " ")) (c/regexp #"MON|TUE|WED|THU|FRI|SAT|SUN"))
-  :nth-last-weekdays (c/cat (c/regexp #"Last|2nd Last|3rd Last|4th Last|5th Last") (c/hide (c/string " ")) (c/regexp #"MON|TUE|WED|THU|FRI|SAT|SUN"))
-  :int (c/hide-tag (c/regexp #"-?[0-9]+"))
-  :pos-int (c/hide-tag (c/regexp #"[1-9][0-9]*"))
-  :non-zero-int (c/hide-tag (c/regexp #"-?[1-9][0-9]*"))} :start :rdate-expr))
+; Simple type function for allowing generalised methods that take rdates or dates
+(defmulti ^{:private true} rdate-arg-type "Retrieve the type for dispatch" class)
+(defmethod rdate-arg-type clojure.lang.PersistentArrayMap [rd] (:type rd))
+(defmethod rdate-arg-type org.joda.time.DateTime [_] ::date-obj)
+(defmethod rdate-arg-type org.joda.time.LocalDate [_] ::date-obj)
+(defmethod rdate-arg-type org.joda.time.LocalDateTime [_] ::date-obj)
+
+; The public APIs for supporting rdate manipulation
+(defmulti rdate-neg "Retrieve the negation of the given rdate" :type)
+(defmulti rdate-add "rdate addition method for combining rdates with dates (or rdates)"
+  (fn [l r] [(rdate-arg-type l) (rdate-arg-type r)]) :hierarchy #'rdate-hierarchy)
+
+(def rdate-parser "The grammar definition for an rdate" (insta/parser
+  "rdate-expr = add-sub
+   <add-sub> = mult | add | sub
+   add = add-sub <'+'> mult
+   sub = add-sub <'-'> mult
+   <mult> = rdate | left-mult | right-mult
+   left-mult = pos-int <'*'> mult
+   right-mult = mult <'*'> pos-int
+   <rdate> = rdate-term | <'('> add-sub <')'>
+   rdate-term = days | weeks | months | years | easter-sunday | weekdays | nth-weekdays | nth-last-weekdays | first-day-of-month | last-day-of-month | day-month
+   days = int <'d'>
+   weeks = int <'w'>
+   months = int <'m'>
+   years = int <'y'>
+   day-month = pos-int month-short
+   easter-sunday = int <'E'>
+   first-day-of-month = <'FDOM'>
+   last-day-of-month = <'LDOM'>
+   weekdays = non-zero-int weekday-short
+   nth-weekdays = #'1st|2nd|3rd|4th|5th' <' '> weekday-short
+   nth-last-weekdays = #'Last|2nd Last|3rd Last|4th Last|5th Last' <' '> weekday-short
+   <int> = #'-?[0-9]+'
+   <pos-int> = #'[1-9][0-9]*'
+   <non-zero-int> = #'-?[1-9][0-9]*'
+   <month-short> = #'JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC'
+   <weekday-short> = #'MON|TUE|WED|THU|FRI|SAT|SUN'" :start :rdate-expr))
 
 (defn rdate [repr] (insta/transform {
-  :days (fn [period] {:type :days :period (Integer. period)})
-  :weeks (fn [period] {:type :weeks :period (Integer. period)})
-  :months (fn [period] {:type :months :period (Integer. period)})
-  :years (fn [period] {:type :years :period (Integer. period)})
-  :first-day-of-month (fn [] {:type :first-day-of-month})
-  :last-day-of-month (fn [] {:type :last-day-of-month})
-  :easter-sunday (fn [period] {:type :easter-sunday :period (Integer. period)})
-  :add (fn [left right] {:type :compound :parts [left right]})
-  :sub (fn [left right] {:type :compound :parts [left (rdate-neg right)]})
-  :left-mult (fn [count rdate] {:type :repeat :times (Integer. count) :part rdate})
-  :right-mult (fn [rdate count] {:type :repeat :times (Integer. count) :part rdate})
-  :weekdays (fn [period weekday] {:type :weekdays :period (Integer. period) :weekday (get {"MON" 1 "TUE" 2 "WED" 3 "THU" 4 "FRI" 5 "SAT" 6 "SUN" 7} weekday)})
-  :nth-weekdays (fn [period weekday] {:type :nth-weekdays
-    :period (get {"1st" 1 "2nd" 2 "3rd" 3 "4th" 4 "5th" 5} period)
-    :weekday (get {"MON" 1 "TUE" 2 "WED" 3 "THU" 4 "FRI" 5 "SAT" 6 "SUN" 7} weekday)})
-  :nth-last-weekdays (fn [period weekday] {:type :nth-last-weekdays
-    :period (get {"Last" 1 "2nd Last" 2 "3rd Last" 3 "4th Last" 4 "5th Last" 5} period)
-    :weekday (get {"MON" 1 "TUE" 2 "WED" 3 "THU" 4 "FRI" 5 "SAT" 6 "SUN" 7} weekday)})
+  :days (fn [p] {:type ::days :period (Integer. p)})
+  :weeks (fn [p] {:type ::weeks :period (Integer. p)})
+  :months (fn [p] {:type ::months :period (Integer. p)})
+  :years (fn [p] {:type ::years :period (Integer. p)})
+  :first-day-of-month (fn [] {:type ::first-day-of-month})
+  :last-day-of-month (fn [] {:type ::last-day-of-month})
+  :easter-sunday (fn [p] {:type ::easter-sunday :period (Integer. p)})
+  :add (fn [l r] {:type ::compound :parts [l r]})
+  :sub (fn [l r] {:type ::compound :parts [l (rdate-neg r)]})
+  :left-mult (fn [c rd] {:type ::repeat :times (Integer. c) :part rd})
+  :right-mult (fn [rd c] {:type ::repeat :times (Integer. c) :part rd})
+  :weekdays (fn [p wd] {:type ::weekdays :period (Integer. p) :weekday (get weekdays-short wd)})
+  :day-month (fn [d m] {:type ::day-month :day (Integer. d) :month (get months-short m)})
+  :nth-weekdays (fn [p w] {:type ::nth-weekdays
+    :period (get {"1st" 1 "2nd" 2 "3rd" 3 "4th" 4 "5th" 5} p)
+    :weekday (get weekdays-short w)})
+  :nth-last-weekdays (fn [p w] {:type ::nth-last-weekdays
+    :period (get {"Last" 1 "2nd Last" 2 "3rd Last" 3 "4th Last" 4 "5th Last" 5} p)
+    :weekday (get weekdays-short w)})
   :rdate-expr identity
   :rdate-term identity
   } (rdate-parser repr)))
 
-(defmethod date-constructor org.joda.time.DateTime [current_dt year month day]
-  (t/date-time year month day))
+; rdate-neg should give back the appropriate negation of the given rdate.
+; NOTE: There should be no requirement for rd-rd to be equivalent to 0d, as There
+; are obvious examples where this is not the case
+(defmethod rdate-neg ::days [rd] (update-in rd [:period] * -1))
+(defmethod rdate-neg ::weeks [rd] (update-in rd [:period] * -1))
+(defmethod rdate-neg ::months [rd] (update-in rd [:period] * -1))
+(defmethod rdate-neg ::years [rd] (update-in rd [:period] * -1))
+(defmethod rdate-neg ::weekdays [rd] (update-in rd [:period] * -1))
+(defmethod rdate-neg ::easter-sunday [rd] (update-in rd [:period] * -1))
 
-(defmethod date-constructor org.joda.time.LocalDate [current_dt year month day]
-  (t/local-date year month day))
-
-(defmethod rdate-neg :days [rd] (update-in rd [:period] * -1))
-(defmethod rdate-neg :weeks [rd] (update-in rd [:period] * -1))
-(defmethod rdate-neg :months [rd] (update-in rd [:period] * -1))
-(defmethod rdate-neg :years [rd] (update-in rd [:period] * -1))
-(defmethod rdate-neg :weekdays [rd] (update-in rd [:period] * -1))
-(defmethod rdate-neg :easter-sunday [rd] (update-in rd [:period] * -1))
-
-(defmulti rdate-add (fn [rd dt] (:type rd)))
-
-(defmethod rdate-add :months [rd dt]
-  (t/plus dt (t/months (:period rd))))
-
-(defmethod rdate-add :days [rd dt]
+; The variety of addition methods for rdates with dates or other rdates
+(defmethod rdate-add [::date-obj ::rdate] [dt rd] (rdate-add rd dt))
+(defmethod rdate-add [::rdate ::rdate] [left right]
+  {:type ::compound :parts [left right]})
+(defmethod rdate-add [::days ::date-obj] [rd dt]
   (t/plus dt (t/days (:period rd))))
-
-(defmethod rdate-add :weeks [rd dt]
+(defmethod rdate-add [::weeks ::date-obj] [rd dt]
   (t/plus dt (t/weeks (:period rd))))
-
-(defmethod rdate-add :years [rd dt]
-  "Nth year from today"
+(defmethod rdate-add [::months ::date-obj] [rd dt]
+  (t/plus dt (t/months (:period rd))))
+(defmethod rdate-add [::years ::date-obj] [rd dt]
   (t/plus dt (t/years (:period rd))))
-
-(defmethod rdate-add :weekdays [rd dt]
-  "Get the nth weekday from today (add or subtract)"
+(defmethod rdate-add [::weekdays ::date-obj] [rd dt]
   (let [weekday-diff (- (t/day-of-week dt) (:weekday rd))
         period-chg (cond (and (< (:period rd) 0) (> weekday-diff 0)) 1 (and (> (:period rd) 0) (< weekday-diff 0)) -1 :else 0)
         period (+ (:period rd) period-chg)]
       (t/plus dt (t/days (- (* period 7) weekday-diff)))))
-
-(defmethod rdate-add :nth-weekdays [rd dt]
+(defmethod rdate-add [::nth-weekdays ::date-obj] [rd dt]
   "Get the nth weekday in the given month. Exception if out of bounds"
   (let [wkd (t/day-of-week dt)
         wkd-1st (inc (mod (- (dec wkd) (dec (mod (t/day dt) 7))) 7))
@@ -127,8 +134,7 @@
         period (if (> wkd-1st-diff 0) (:period rd) (dec (:period rd)))
         days (inc (- (* 7 period) wkd-1st-diff))]
     (date-constructor dt (t/year dt) (t/month dt) days)))
-
-(defmethod rdate-add :nth-last-weekdays [rd dt]
+(defmethod rdate-add [::nth-last-weekdays ::date-obj] [rd dt]
   "Get the nth last weekday in the given month. Exception if out of bounds"
   (let [ldom (t/last-day-of-the-month dt)
         ldom-dow (t/day-of-week ldom)
@@ -137,18 +143,15 @@
         days-to-sub (+ (* period 7) ldom-dow-diff)
         days (- (t/day ldom) days-to-sub)]
     (date-constructor dt (t/year dt) (t/month dt) days)))
-
-(defmethod rdate-add :first-day-of-month [rd dt]
+(defmethod rdate-add [::first-day-of-month ::date-obj] [rd dt]
   (t/first-day-of-the-month dt))
-
-(defmethod rdate-add :last-day-of-month [rd dt]
+(defmethod rdate-add [::last-day-of-month ::date-obj] [rd dt]
   (t/last-day-of-the-month dt))
-
-(defmethod rdate-add :easter-sunday [rd dt]
-  (easter-sunday dt (:period rd)))
-
-(defmethod rdate-add :compound [rd dt]
+(defmethod rdate-add [::easter-sunday ::date-obj] [rd dt]
+  (intfn/easter-sunday date-constructor dt (:period rd)))
+(defmethod rdate-add [::day-month ::date-obj] [rd dt]
+  (date-constructor dt (t/year dt) (:month rd) (:day rd)))
+(defmethod rdate-add [::compound ::date-obj] [rd dt]
   (reduce #(rdate-add %2 %1) dt (:parts rd)))
-
-(defmethod rdate-add :repeat [rd dt]
+(defmethod rdate-add [::repeat ::date-obj] [rd dt]
   (reduce #(rdate-add %2 %1) dt (repeat (:times rd) (:part rd))))
