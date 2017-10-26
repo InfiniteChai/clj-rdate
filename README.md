@@ -157,6 +157,51 @@ the given month
 => #[org.joda.time.LocalDate "2017-10-31"]
 ```
 
+#### Relative Date Algebraic Operations
+
+The relative date library also supports addition, subtraction (where appropriate) and constant multiplication operations.
+
+You can add two rdates together using the `+` symbol, which will be equivalent of applying the left then the right sequentially.
+
+``` clj
+(rd/rdate-add (rd/rdate "1d+2d") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-28"]
+(rd/rdate-add (rd/rdate "3rd WED+1d") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-19"]
+```
+
+Where the rdate on the right supports negation, then you can subtract
+two rdates using the `-` symbol. This is equivalent of applying the left then the negation of the right sequentially.
+
+It's worth noting that in most cases, this is just syntax sugar of an addition and wrapping the negated right rdate in brackets.
+
+``` clj
+(rd/rdate-add (rd/rdate "1d-2d") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-24"]
+(rd/rdate-add (rd/rdate "3rd WED-1d") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-17"]
+(rd/rdate-add (rd/rdate "1d+(-2d)") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-24"]
+```
+
+Finally we also support multiplication of an rdate with a positive integer `n` using the `*` symbol. This is equivalent to repeating the rdate operation `n` times.
+
+``` clj
+(rd/rdate-add (rd/rdate "3*2d") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-31"]
+(rd/rdate-add (rd/rdate "2d*3") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-10-31"]
+```
+
+As with standard arithmetic, the multiplication takes prescedence over addition or subtraction, but can be overruled using brackets.
+
+``` clj
+(rd/rdate-add (rd/rdate "3*2d+1d") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-11-01"]
+(rd/rdate-add (rd/rdate "3*(2d+1d)") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-11-03"]
+```
+
 ## License
 
 Released under the MIT License: <https://github.com/InfiniteChai/clj-rdate/blob/master/MIT-LICENSE.txt>

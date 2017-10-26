@@ -157,3 +157,77 @@
     ; First check basic cases up add and subtract work
     (t/local-date 2017 10 31) {:rd "LDOM" :dt (t/local-date 2017 10 25)}
     (t/date-time 2017 10 31) {:rd "LDOM" :dt (t/date-time 2017 10 25)}))
+
+(deftest test-rdate-add-basic-addition-compounds
+  (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+    ; Start with some simple models
+    (t/local-date 2017 10 28) {:rd "1d+1d" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 30) {:rd "1d+1d+1d+1d" :dt (t/local-date 2017 10 26)}
+    ; Some trivial no-op scenarios
+    (t/local-date 2017 10 26) {:rd "1d-1d" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 26) {:rd "1d-1d-1d+1d" :dt (t/local-date 2017 10 26)}
+    ; And check more complex no-ops with unary operators
+    (t/local-date 2017 10 26) {:rd "-1d+3d-2d" :dt (t/local-date 2017 10 26)}
+    ; Check that mixing methods and ordering works as expected (left to right)
+    (t/local-date 2017 10 19) {:rd "3rd WED+1d" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 18) {:rd "1d+3rd WED" :dt (t/local-date 2017 10 26)}
+    ; Now check some more obscure examples where they're not 'no-op'
+    (t/local-date 2017 10 26) {:rd "1m-1m" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 30) {:rd "1m-1m" :dt (t/local-date 2017 10 31)}
+    ; Start with some simple models
+    (t/date-time 2017 10 28) {:rd "1d+1d" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 30) {:rd "1d+1d+1d+1d" :dt (t/date-time 2017 10 26)}
+    ; Some trivial no-op scenarios
+    (t/date-time 2017 10 26) {:rd "1d-1d" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 26) {:rd "1d-1d-1d+1d" :dt (t/date-time 2017 10 26)}
+    ; And check more complex no-ops with unary operators
+    (t/date-time 2017 10 26) {:rd "-1d+3d-2d" :dt (t/date-time 2017 10 26)}
+    ; Check that mixing methods and ordering works as expected (left to right)
+    (t/date-time 2017 10 19) {:rd "3rd WED+1d" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 18) {:rd "1d+3rd WED" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 26) {:rd "1m-1m" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 30) {:rd "1m-1m" :dt (t/date-time 2017 10 31)}))
+
+
+(deftest test-rdate-add-basic-multiplication-compounds
+  (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+    ; Start with some simple left multiplier cases
+    (t/local-date 2017 10 27) {:rd "1*1d" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 28) {:rd "2*1d" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 30) {:rd "4*1d" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 22) {:rd "4*-1d" :dt (t/local-date 2017 10 26)}
+    ; And now check the right multiplier
+    (t/local-date 2017 10 27) {:rd "1d*1" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 28) {:rd "1d*2" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 30) {:rd "1d*4" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 22) {:rd "-1d*4" :dt (t/local-date 2017 10 26)}
+    ; Repeated multiplications work as expected? 3*2*1d == 6d and check
+    ; various iterations work as expected
+    (t/local-date 2017 11 01) {:rd "3*2*1d" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 11 01) {:rd "1d*2*3" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 11 01) {:rd "2*1d*3" :dt (t/local-date 2017 10 26)}
+
+    ; Check that it takes prescedence over addition
+    (t/local-date 2017 11 02) {:rd "2*3d+1d" :dt (t/local-date 2017 10 26)}
+    ; But bracketing will overrule this
+    (t/local-date 2017 11 03) {:rd "2*(3d+1d)" :dt (t/local-date 2017 10 26)}
+    ; Start with some simple left multiplier cases
+    (t/date-time 2017 10 27) {:rd "1*1d" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 28) {:rd "2*1d" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 30) {:rd "4*1d" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 22) {:rd "4*-1d" :dt (t/date-time 2017 10 26)}
+    ; And now check the right multiplier
+    (t/date-time 2017 10 27) {:rd "1d*1" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 28) {:rd "1d*2" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 30) {:rd "1d*4" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 10 22) {:rd "-1d*4" :dt (t/date-time 2017 10 26)}
+    ; Repeated multiplications work as expected? 3*2*1d == 6d and check
+    ; various iterations work as expected
+    (t/date-time 2017 11 01) {:rd "3*2*1d" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 11 01) {:rd "1d*2*3" :dt (t/date-time 2017 10 26)}
+    (t/date-time 2017 11 01) {:rd "2*1d*3" :dt (t/date-time 2017 10 26)}
+
+    ; Check that it takes prescedence over addition
+    (t/date-time 2017 11 02) {:rd "2*3d+1d" :dt (t/date-time 2017 10 26)}
+    ; But bracketing will overrule this
+    (t/date-time 2017 11 03) {:rd "2*(3d+1d)" :dt (t/date-time 2017 10 26)}))
