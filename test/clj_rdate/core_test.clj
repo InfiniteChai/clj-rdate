@@ -231,3 +231,10 @@
     (t/date-time 2017 11 02) {:rd "2*3d+1d" :dt (t/date-time 2017 10 26)}
     ; But bracketing will overrule this
     (t/date-time 2017 11 03) {:rd "2*(3d+1d)" :dt (t/date-time 2017 10 26)}))
+
+    (deftest test-rdate-add-easter-sunday
+      (are [exp args] (= exp (rdate-add (rdate (:rd args)) (:dt args)))
+        ; Check some particular cases out
+        (t/local-date 2017 04 16) {:rd "0E" :dt (t/local-date 2017 10 26)}
+        (t/local-date 2027 03 28) {:rd "10E" :dt (t/local-date 2017 10 26)}
+        (t/local-date 2016 03 27) {:rd "-1E" :dt (t/local-date 2017 10 26)}))

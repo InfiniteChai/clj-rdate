@@ -12,6 +12,27 @@
 ;2*(3m+2d)
 ;[:add [:left-mult "2" [:months "3"]] [:days "2"]]
 ;[:left-mult "2" [:add [:months "3"] [:days "2"]]]
+(defmulti date-constructor (fn [current_dt year month day] (class current_dt)))
+
+(defn- easter-sunday [dt year-increment]
+  (let [year (+ (t/year dt) year-increment)
+        a (rem  year 19)
+        b (quot year 100)
+        c (rem  year 100)
+        d (quot b 4)
+        e (rem  b 4)
+        f (quot (+ b 8) 25)
+        g (quot (+ b (- f) 1) 3)
+        h (rem  (+ (* 19 a) b (- d) (- g) 15) 30)
+        i (quot c 4)
+        k (rem  c 4)
+        l (rem  (+ 32 (* 2 e) (* 2 i) (- h) (- k)) 7)
+        m (quot (+ a (* 11 h) (* 22 l)) 451)
+        n (quot (+ h l (- (* 7 m)) 114) 31)
+        p (rem  (+ h l (- (* 7 m)) 114) 31)]
+    (if (< year 1583)
+      (throw (IllegalArgumentException. "Easter sunday only supported from 1583"))
+      (date-constructor dt year n (inc p)))))
 
 (defmulti rdate-neg :type)
 
@@ -24,12 +45,13 @@
   :left-mult (c/cat (c/nt :pos-int) (c/hide (c/string "*")) (c/nt :mult))
   :right-mult (c/cat (c/nt :mult) (c/hide (c/string "*")) (c/nt :pos-int))
   :rdate (c/hide-tag (c/alt (c/nt :rdate-term) (c/cat (c/hide (c/string "(")) (c/nt :add-sub) (c/hide (c/string ")")))))
-  :rdate-term (c/alt (c/nt :days) (c/nt :weeks) (c/nt :months) (c/nt :years)
+  :rdate-term (c/alt (c/nt :days) (c/nt :weeks) (c/nt :months) (c/nt :years) (c/nt :easter-sunday)
     (c/nt :weekdays) (c/nt :nth-weekdays) (c/nt :nth-last-weekdays) (c/nt :first-day-of-month) (c/nt :last-day-of-month))
   :days (c/cat (c/nt :int) (c/hide (c/string "d")))
   :weeks (c/cat (c/nt :int) (c/hide (c/string "w")))
   :months (c/cat (c/nt :int) (c/hide (c/string "m")))
   :years (c/cat (c/nt :int) (c/hide (c/string "y")))
+  :easter-sunday (c/cat (c/nt :int) (c/hide (c/string "E")))
   :first-day-of-month (c/hide (c/string "FDOM"))
   :last-day-of-month (c/hide (c/string "LDOM"))
   :weekdays (c/cat (c/nt :non-zero-int) (c/regexp #"MON|TUE|WED|THU|FRI|SAT|SUN"))
@@ -46,6 +68,7 @@
   :years (fn [period] {:type :years :period (Integer. period)})
   :first-day-of-month (fn [] {:type :first-day-of-month})
   :last-day-of-month (fn [] {:type :last-day-of-month})
+  :easter-sunday (fn [period] {:type :easter-sunday :period (Integer. period)})
   :add (fn [left right] {:type :compound :parts [left right]})
   :sub (fn [left right] {:type :compound :parts [left (rdate-neg right)]})
   :left-mult (fn [count rdate] {:type :repeat :times (Integer. count) :part rdate})
@@ -61,8 +84,6 @@
   :rdate-term identity
   } (rdate-parser repr)))
 
-(defmulti date-constructor (fn [current_dt year month day] (class current_dt)))
-
 (defmethod date-constructor org.joda.time.DateTime [current_dt year month day]
   (t/date-time year month day))
 
@@ -74,6 +95,7 @@
 (defmethod rdate-neg :months [rd] (update-in rd [:period] * -1))
 (defmethod rdate-neg :years [rd] (update-in rd [:period] * -1))
 (defmethod rdate-neg :weekdays [rd] (update-in rd [:period] * -1))
+(defmethod rdate-neg :easter-sunday [rd] (update-in rd [:period] * -1))
 
 (defmulti rdate-add (fn [rd dt] (:type rd)))
 
@@ -121,6 +143,9 @@
 
 (defmethod rdate-add :last-day-of-month [rd dt]
   (t/last-day-of-the-month dt))
+
+(defmethod rdate-add :easter-sunday [rd dt]
+  (easter-sunday dt (:period rd)))
 
 (defmethod rdate-add :compound [rd dt]
   (reduce #(rdate-add %2 %1) dt (:parts rd)))

@@ -157,6 +157,19 @@ the given month
 => #[org.joda.time.LocalDate "2017-10-31"]
 ```
 
+#### Easter Sunday
+
+Mainly defined to support integration with holiday calendars, but you
+can find out the relative Easter Sunday from a given date. Note, `1E` refers
+to the Easter Sunday of next year and not necessarily the next Easter Sunday. You can use `0E` to get this year's Easter Sunday
+
+``` clj
+(rd/rdate-add (rd/rdate "0E") (t/local-date 2017 01 25))
+=> #[org.joda.time.LocalDate "2017-04-16"]
+(rd/rdate-add (rd/rdate "1E") (t/local-date 2017 01 25))
+=> #[org.joda.time.LocalDate "2018-04-01"]
+```
+
 #### Relative Date Algebraic Operations
 
 The relative date library also supports addition, subtraction (where appropriate) and constant multiplication operations.
