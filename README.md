@@ -216,6 +216,47 @@ As with standard arithmetic, the multiplication takes prescedence over addition 
 => #[org.joda.time.LocalDate "2017-11-03"]
 ```
 
+#### Holiday Calendars
+
+We now have support for a basic holiday calendar system (to be extended)
+that can be incorporated into appropriate relative dates. Currently this is supported on `d`, `w`, `m` and `y` types.
+
+For example, `1m` will not taken into account weekends, but `1m@Weekdays` will move us to the next weekday.
+
+``` clj
+(rd/rdate-add (rd/rdate "1m") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-11-25"]
+(rd/rdate-add (rd/rdate "1m@Weekdays") (t/local-date 2017 10 25))
+=> #[org.joda.time.LocalDate "2017-11-27"]
+```
+
+Equivalently if we go back in time, then we'll adjust to the previous weekday.
+
+``` clj
+(rd/rdate-add (rd/rdate "-1m") (t/local-date 2017 10 24))
+=> #[org.joda.time.LocalDate "2017-09-24"]
+(rd/rdate-add (rd/rdate "-1m@Weekdays") (t/local-date 2017 10 24))
+=> #[org.joda.time.LocalDate "2017-09-22"]
+```
+
+A common operation, especially in finance, is to increment (or decrement) by, say 5, business days given a specific calendar which could be achieved using `5*(1d@Cal)` (or `5*(-1d@Cal)`). We provide a specific shorthand for this as `5b@Cal` (or `-5b@Cal`). `5b` is also shorthand for `5b@Weekdays`.
+
+``` clj
+(rd/rdate-add (rd/rdate "5b") (t/local-date 2017 10 24))
+=> #[org.joda.time.LocalDate "2017-10-31"]
+(rd/rdate-add (rd/rdate "-5b") (t/local-date 2017 10 24))
+=> #[org.joda.time.LocalDate "2017-10-17"]
+```
+
+It's worth noting that we also support `0b@Cal` which is equivalent to `0d@Cal` which will move to the next business day, if not currently on one.
+
+``` clj
+(rd/rdate-add (rd/rdate "0b") (t/local-date 2017 10 27))
+=> #[org.joda.time.LocalDate "2017-10-27"]
+(rd/rdate-add (rd/rdate "0b") (t/local-date 2017 10 28))
+=> #[org.joda.time.LocalDate "2017-10-30"]
+```
+
 ## License
 
 Released under the MIT License: <https://github.com/InfiniteChai/clj-rdate/blob/master/MIT-LICENSE.txt>

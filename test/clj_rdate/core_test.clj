@@ -259,3 +259,30 @@
     (t/local-date 2017 01 01) {:rd "1JAN" :dt (t/local-date 2017 10 26)}
     (t/local-date 2017 02 23) {:rd "23FEB" :dt (t/local-date 2017 10 26)}
     (t/local-date 2017 12 31) {:rd "31DEC" :dt (t/local-date 2017 10 26)}))
+
+(deftest test-rdate-add-days-with-cal
+  (are [exp args] (= exp (rdate-add (:rd args) (:dt args)))
+    (t/local-date 2017 10 27) {:rd "1d@Weekdays" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 30) {:rd "1d@Weekdays" :dt (t/local-date 2017 10 27)}
+    (t/local-date 2017 10 30) {:rd "1d@Weekdays" :dt (t/local-date 2017 10 28)}
+    (t/local-date 2017 10 30) {:rd "2d@Weekdays" :dt (t/local-date 2017 10 27)}
+    (t/local-date 2017 10 31) {:rd "2*(1d@Weekdays)" :dt (t/local-date 2017 10 27)}
+
+    (t/local-date 2017 10 26) {:rd "-1d@Weekdays" :dt (t/local-date 2017 10 27)}
+    (t/local-date 2017 10 27) {:rd "-1d@Weekdays" :dt (t/local-date 2017 10 30)}
+    (t/local-date 2017 10 27) {:rd "-1d@Weekdays" :dt (t/local-date 2017 10 29)}
+    (t/local-date 2017 10 27) {:rd "-2d@Weekdays" :dt (t/local-date 2017 10 30)}
+    (t/local-date 2017 10 27) {:rd "2*(-1d@Weekdays)" :dt (t/local-date 2017 10 31)}))
+
+(deftest test-rdate-add-biz-days
+  (are [exp args] (= exp (rdate-add (:rd args) (:dt args)))
+    (t/local-date 2017 10 27) {:rd "1b" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 30) {:rd "2b" :dt (t/local-date 2017 10 26)}
+    ; We can see that 2b is equivalent to 2*(1d@Weekdays)
+    (t/local-date 2017 10 31) {:rd "2b" :dt (t/local-date 2017 10 27)}
+    ; We see that -2b is equivalent to 2*(-1d@weekdays)
+    (t/local-date 2017 10 27) {:rd "-2b" :dt (t/local-date 2017 10 31)}
+    (t/local-date 2017 10 26) {:rd "-2b" :dt (t/local-date 2017 10 30)}
+    ; 0b is actually 1*(0d@Weekdays)
+    (t/local-date 2017 10 26) {:rd "0b" :dt (t/local-date 2017 10 26)}
+    (t/local-date 2017 10 30) {:rd "0b" :dt (t/local-date 2017 10 28)}))
