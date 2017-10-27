@@ -144,6 +144,18 @@
   :rdate-term identity
   } (rdate-parser repr)))
 
+(defn rdate-inf-range
+  ([from_dt period] (rdate-inf-range from_dt period true))
+  ([from_dt period inc_from]
+    (let [start_dt (if inc_from from_dt (rdate-add period from_dt))]
+      (iterate #(rdate-add period %1) start_dt))))
+
+(defn rdate-range
+  ([from_dt to_dt period] (rdate-range from_dt to_dt period true true))
+  ([from_dt to_dt period inc_from inc_to]
+    (letfn [(dt-compare [next] (if inc_to (not (t/after? next to_dt)) (t/before? next to_dt)))]
+      (take-while dt-compare (rdate-inf-range from_dt period inc_from)))))
+
 (require 'clj-rdate.internal.rdate-add-impl
          'clj-rdate.internal.rdate-neg-impl
          'clj-rdate.internal.holiday-cal-impl)
