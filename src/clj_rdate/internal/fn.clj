@@ -21,3 +21,7 @@
     (if (< year 1583)
       (throw (IllegalArgumentException. "Easter sunday only supported from 1583"))
       (date-constructor dt year n (inc p)))))
+
+(defmulti to-local-date class)
+(defmethod to-local-date org.joda.time.LocalDate [dt] dt)
+(defmethod to-local-date :default [dt] (t/local-date (t/year dt) (t/month dt) (t/day dt)))

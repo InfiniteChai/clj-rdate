@@ -1,52 +1,10 @@
 (ns clj-rdate.core
   (:require [clj-time.core :as t]
-    [clj-rdate.internal.fn :as intfn]
-    [instaparse.core :as insta]
-              [instaparse.combinators :as c]))
-
-(def rdate-hierarchy (-> (make-hierarchy)
-  (derive ::days ::rdate)
-  (derive ::weeks ::rdate)
-  (derive ::months ::rdate)
-  (derive ::years ::rdate)
-  (derive ::weekdays ::rdate)
-  (derive ::nth-weekdays ::rdate)
-  (derive ::nth-last-weekdays ::rdate)
-  (derive ::first-day-of-month ::rdate)
-  (derive ::last-day-of-month ::rdate)
-  (derive ::easter-sunday ::rdate)
-  (derive ::day-month ::rdate)
-  (derive ::compound ::rdate)
-  (derive ::repeat ::rdate)))
-
-(def months-short "Mapping from month short names to month integer"
-  {"JAN" 1 "FEB" 2 "MAR" 3 "APR" 4 "MAY" 5 "JUN" 6 "JUL" 7 "AUG" 8 "SEP" 9 "OCT" 10 "NOV" 11 "DEC" 12})
-
-(def weekdays-short "Mapping from weekday short names to weekday integer (starting on Mon)"
-  {"MON" 1 "TUE" 2 "WED" 3 "THU" 4 "FRI" 5 "SAT" 6 "SUN" 7})
-
-; The date contructors allow us to work back to the type of date that was passed
-; in. We support the three standard date types available within clj-time
-(defmulti ^{:private true} date-constructor "Date construction wrapper for clj-time"
-  (fn [current_dt year month day] (class current_dt)))
-(defmethod date-constructor org.joda.time.DateTime [current_dt year month day]
-  (t/date-time year month day))
-(defmethod date-constructor org.joda.time.LocalDate [current_dt year month day]
-  (t/local-date year month day))
-(defmethod date-constructor org.joda.time.LocalDateTime [current_dt year month day]
-  (t/local-date-time year month day))
-
-; Simple type function for allowing generalised methods that take rdates or dates
-(defmulti ^{:private true} rdate-arg-type "Retrieve the type for dispatch" class)
-(defmethod rdate-arg-type clojure.lang.PersistentArrayMap [rd] (:type rd))
-(defmethod rdate-arg-type org.joda.time.DateTime [_] ::date-obj)
-(defmethod rdate-arg-type org.joda.time.LocalDate [_] ::date-obj)
-(defmethod rdate-arg-type org.joda.time.LocalDateTime [_] ::date-obj)
-
-; The public APIs for supporting rdate manipulation
-(defmulti rdate-neg "Retrieve the negation of the given rdate" :type)
-(defmulti rdate-add "rdate addition method for combining rdates with dates (or rdates)"
-  (fn [l r] [(rdate-arg-type l) (rdate-arg-type r)]) :hierarchy #'rdate-hierarchy)
+            [clj-rdate.internal.fn :as intfn]
+            [instaparse.core :as insta]
+            [instaparse.combinators :as c]
+            [clj-rdate.holiday-cal :as cal]
+            [clj-rdate.internal.rdate-defns :as rd-defns :refer :all]))
 
 (def rdate-parser "The grammar definition for an rdate" (insta/parser
   "rdate-expr = add-sub
@@ -57,7 +15,9 @@
    left-mult = pos-int <'*'> mult
    right-mult = mult <'*'> pos-int
    <rdate> = rdate-term | <'('> add-sub <')'>
-   rdate-term = days | weeks | months | years | easter-sunday | weekdays | nth-weekdays | nth-last-weekdays | first-day-of-month | last-day-of-month | day-month
+   rdate-term = days | weeks | months | years | easter-sunday | weekdays | nth-weekdays | nth-last-weekdays | first-day-of-month | last-day-of-month | day-month | calendar
+   <cal-rdate-term> = days | weeks | months | years
+   calendar = cal-rdate-term <'@'> #'(\\w|\\||\\s)+\\w'
    days = int <'d'>
    weeks = int <'w'>
    months = int <'m'>
@@ -97,6 +57,8 @@
   :nth-last-weekdays (fn [p w] {:type ::nth-last-weekdays
     :period (get {"Last" 1 "2nd Last" 2 "3rd Last" 3 "4th Last" 4 "5th Last" 5} p)
     :weekday (get weekdays-short w)})
+  :calendar (fn [rd c] {:type ::calendar :rdate rd :cal (cal/get-calendar c)
+    :bdc (if (rdate-is-neg? rd) ::pbd ::nbd)})
   :rdate-expr identity
   :rdate-term identity
   } (rdate-parser repr)))
@@ -111,10 +73,21 @@
 (defmethod rdate-neg ::weekdays [rd] (update-in rd [:period] * -1))
 (defmethod rdate-neg ::easter-sunday [rd] (update-in rd [:period] * -1))
 
+(defmethod rdate-is-neg? ::days [rd] (< (:period rd) 0))
+(defmethod rdate-is-neg? ::weeks [rd] (< (:period rd) 0))
+(defmethod rdate-is-neg? ::months [rd] (< (:period rd) 0))
+(defmethod rdate-is-neg? ::years [rd] (< (:period rd) 0))
+(defmethod rdate-is-neg? ::weekdays [rd] (< (:period rd) 0))
+(defmethod rdate-is-neg? ::easter-sunday [rd] (< (:period rd) 0))
+(defmethod rdate-is-neg? ::rdate [rd] false)
+
 ; The variety of addition methods for rdates with dates or other rdates
 (defmethod rdate-add [::date-obj ::rdate] [dt rd] (rdate-add rd dt))
 (defmethod rdate-add [::rdate ::rdate] [left right]
   {:type ::compound :parts [left right]})
+(defmethod rdate-add [::string-obj ::date-obj] [rd dt] (rdate-add (rdate rd) dt))
+(defmethod rdate-add [::date-obj ::string-obj] [dt rd] (rdate-add (rdate rd) dt))
+(defmethod rdate-add [::string-obj ::string-obj] [l r] (rdate-add (rdate l) (rdate r)))
 (defmethod rdate-add [::days ::date-obj] [rd dt]
   (t/plus dt (t/days (:period rd))))
 (defmethod rdate-add [::weeks ::date-obj] [rd dt]
@@ -157,3 +130,9 @@
   (reduce #(rdate-add %2 %1) dt (:parts rd)))
 (defmethod rdate-add [::repeat ::date-obj] [rd dt]
   (reduce #(rdate-add %2 %1) dt (repeat (:times rd) (:part rd))))
+(defmethod rdate-add [::calendar ::date-obj] [rd dt]
+  (let [bdc-op (get {::nbd t/plus ::pbd t/minus} (:bdc rd))
+        cal (:cal rd)
+        one-day (t/days 1)]
+    (loop [result (rdate-add (:rdate rd) dt)]
+      (if (cal/is-not-holiday? cal result) result (recur (bdc-op result one-day))))))
