@@ -1,4 +1,4 @@
-# clj-rdate
+# `clj-rdate`  <a href="https://travis-ci.org/#!/infinitechai/clj-rdate/builds"><img src="https://secure.travis-ci.org/infinitechai/clj-rdate.png"/></a>
 
 A relative date library for Clojure, wrapping the [clj-time](https://github.com/clj-time/clj-time) library
 to allow for relative manipulation of dates. Aims to provide a generic, extendable algebra for relative date
