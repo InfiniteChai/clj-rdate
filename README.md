@@ -289,12 +289,10 @@ And again, we have optional arguments to choose whether to include the from and 
 This should give the basic building blocks to come up with as complex a set  of functionality as you require. For example, to get the next 8 future IMM
 dates we could use the following
 ``` clj
-(let [today (t/local-date 2017 10 27) start (rd/rdate-add "-1y+1MAR" today)]
+(let [today (t/local-date 2017 10 27) start (rd/rdate-add "1MAR+3rd WED" today)]
   (take 8 (drop-while #(t/before? %1 today) (rd/rdate-inf-range start "3m+3rd WED"))))
 => (#["2017-12-20"], #["2018-03-21"], ..., #["2019-09-18"])
 ```
-
-
 
 ## License
 
