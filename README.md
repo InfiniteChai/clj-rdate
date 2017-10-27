@@ -257,6 +257,45 @@ It's worth noting that we also support `0b@Cal` which is equivalent to `0d@Cal` 
 => #[org.joda.time.LocalDate "2017-10-30"]
 ```
 
+### Ranges
+
+As well as performing relative date operations, you can also get a range
+of dates that follow a given period. For example, if we want the next five yearly increments, including the start date, then
+``` clj
+(take 5 (rd/rdate-inf-range (t/local-date 2017 10 27) "1y"))
+=> (#["2017-10-27"], #["2018-10-27"], ..., #["2021-10-27"]
+```
+
+We can also choose not to include the first date, then we get
+``` clj
+(take 5 (rd/rdate-inf-range (t/local-date 2017 10 27) "1y" false))
+=> (#["2018-10-27"], #["2019-10-27"], ..., #["2022-10-27"]
+```
+
+If you want to pick a range up to a given date, then we also provide `rdate-range` for this
+``` clj
+(let [from (t/local-date 2017 10 27) to (rd/rdate-add "1y" from)]
+  (rd/rdate-range from to "2m"))
+=> (#["2017-10-27"], #["2017-12-27"], ..., #["2018-08-27"], #["2018-10-27"])
+```
+
+And again, we have optional arguments to choose whether to include the from and to dates.
+``` clj
+(let [from (t/local-date 2017 10 27) to (rd/rdate-add "1y" from)]
+  (rd/rdate-range from to "2m" true false))
+=> (#["2017-10-27"], #["2017-12-27"], ..., #["2018-06-27"], #["2018-08-27"])
+```
+
+This should give the basic building blocks to come up with as complex a set  of functionality as you require. For example, to get the next 8 future IMM
+dates we could use the following
+``` clj
+(let [today (t/local-date 2017 10 27) start (rd/rdate-add "-1y+1MAR" today)]
+  (take 8 (drop-while #(t/before? %1 today) (rd/rdate-inf-range start "3m+3rd WED"))))
+=> (#["2017-12-20"], #["2018-03-21"], ..., #["2019-09-18"])
+```
+
+
+
 ## License
 
 Released under the MIT License: <https://github.com/InfiniteChai/clj-rdate/blob/master/MIT-LICENSE.txt>
