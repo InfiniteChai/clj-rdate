@@ -3,8 +3,57 @@
             [clj-rdate.internal.fn :as intfn]
             [instaparse.core :as insta]
             [instaparse.combinators :as c]
-            [clj-rdate.holiday-cal :as cal]
-            [clj-rdate.internal.rdate-defns :as rd-defns :refer :all]))
+            [clj-rdate.holiday-cal :as cal]))
+
+
+(def rdate-hierarchy (-> (make-hierarchy)
+  (derive ::days ::rdate)
+  (derive ::weeks ::rdate)
+  (derive ::months ::rdate)
+  (derive ::years ::rdate)
+  (derive ::weekdays ::rdate)
+  (derive ::nth-weekdays ::rdate)
+  (derive ::nth-last-weekdays ::rdate)
+  (derive ::first-day-of-month ::rdate)
+  (derive ::last-day-of-month ::rdate)
+  (derive ::easter-sunday ::rdate)
+  (derive ::day-month ::rdate)
+  (derive ::compound ::rdate)
+  (derive ::calendar ::rdate)
+  (derive ::repeat ::rdate)))
+
+
+(def months-short "Mapping from month short names to month integer"
+  {"JAN" 1 "FEB" 2 "MAR" 3 "APR" 4 "MAY" 5 "JUN" 6 "JUL" 7 "AUG" 8 "SEP" 9 "OCT" 10 "NOV" 11 "DEC" 12})
+
+(def weekdays-short "Mapping from weekday short names to weekday integer (starting on Mon)"
+  {"MON" 1 "TUE" 2 "WED" 3 "THU" 4 "FRI" 5 "SAT" 6 "SUN" 7})
+
+; The date contructors allow us to work back to the type of date that was passed
+; in. We support the three standard date types available within clj-time
+(defmulti date-constructor "Date construction wrapper for clj-time"
+  (fn [current_dt year month day] (class current_dt)))
+(defmethod date-constructor org.joda.time.DateTime [current_dt year month day]
+  (t/date-time year month day))
+(defmethod date-constructor org.joda.time.LocalDate [current_dt year month day]
+  (t/local-date year month day))
+(defmethod date-constructor org.joda.time.LocalDateTime [current_dt year month day]
+  (t/local-date-time year month day))
+
+; Simple type function for allowing generalised methods that take rdates or dates
+(defmulti rdate-arg-type "Retrieve the type for dispatch" class)
+(defmethod rdate-arg-type clojure.lang.PersistentArrayMap [rd] (:type rd))
+(defmethod rdate-arg-type org.joda.time.DateTime [_] ::date-obj)
+(defmethod rdate-arg-type org.joda.time.LocalDate [_] ::date-obj)
+(defmethod rdate-arg-type org.joda.time.LocalDateTime [_] ::date-obj)
+(defmethod rdate-arg-type java.lang.String [_] ::string-obj)
+
+; The public APIs for supporting rdate manipulation
+(defmulti rdate-neg "Retrieve the negation of the given rdate" :type)
+(defmulti rdate-is-neg? "Check whether a given rdate would be deemed 'negative'" :type :hierarchy #'rdate-hierarchy)
+(defmulti rdate-add "rdate addition method for combining rdates with dates (or rdates)"
+  (fn [l r] [(rdate-arg-type l) (rdate-arg-type r)]) :hierarchy #'rdate-hierarchy)
+
 
 (def rdate-parser "The grammar definition for an rdate" (insta/parser
   "rdate-expr = add-sub
