@@ -16,6 +16,7 @@
   {:type :clj-rdate.core/multi :cals [
     (get-calendar "Weekdays")
     {:type :clj-rdate.core/rule-based :rules [
+      ; Examples of the periodic form for standard holidays
       {:type ::rule-periodic :name "New Years Day" :period "1y" :rule "1JAN+0b"}
       {:type ::rule-periodic :name "Good Friday" :period "1y" :rule "0E-2d"}
       {:type ::rule-periodic :name "Easter Monday" :period "1y" :rule "0E+1d"}
@@ -24,6 +25,10 @@
       {:type ::rule-periodic :name "Summer Bank Holiday" :period "1y" :rule "1AUG+Last MON"}
       {:type ::rule-periodic :name "Christmas Day" :period "1y" :rule "25DEC+0b"}
       {:type ::rule-periodic :name "Boxing Day" :period "1y" :rule "26DEC+0b"}
+      ; Examples of specific date holidays which may be added (or removed)
+      {:type ::rule-specific-date :name "Queen's Diamond Jubilee" :day 05 :month 06 :year 2012}
+      {:type ::rule-specific-date :name "2012 May Bank Holiday" :day 04 :month 06 :year 2012}
+      {:type ::rule-specific-date-removal :name "2012 May Bank Holiday Moved" :day 28 :month 05 :year 2012}
       ]}]})
 
 (defmethod is-holiday? :clj-rdate.core/multi [cal dt]
@@ -49,6 +54,13 @@
   (into (sorted-map)
     (map #(vector (rdate-add (:rule rule) %1) (:name rule))
       (rdate-range from-dt to-dt (:period rule)))))
+(defmethod rule-holidays ::rule-specific-date [rule from-dt to-dt]
+  (let [dt (t/local-date (:year rule) (:month rule) (:day rule))]
+    (if (and (not (t/after? from-dt dt)) (not (t/before? to-dt dt))) {dt (:name rule)} {})))
+
+(defmethod rule-holidays ::rule-specific-date-removal [rule from-dt to-dt]
+  (let [dt (t/local-date (:year rule) (:month rule) (:day rule))]
+    (if (and (not (t/after? from-dt dt)) (not (t/before? to-dt dt))) {dt nil} {})))
 
 (defmethod holidays :clj-rdate.core/rule-based [cal from-dt to-dt]
-  (into (sorted-map) (map #(rule-holidays %1 from-dt to-dt) (:rules cal))))
+  (into {} (filter #(not (nil? (second %))) (into (sorted-map) (map #(rule-holidays %1 from-dt to-dt) (:rules cal))))))
