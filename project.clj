@@ -5,7 +5,7 @@
             :url "http://www.opensource.org/licenses/mit-license.php"
             :distribution :repo}
   :deploy-repositories [
-    ["clojars"  {:sign-releases false :url "https://clojars.org"}]]
+    ["clojars"  {:sign-releases false :url "https://clojars.org/repo"}]]
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [clj-time "0.14.0"]
                  [instaparse "1.4.8"]]
